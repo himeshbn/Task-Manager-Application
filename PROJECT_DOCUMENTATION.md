@@ -12,34 +12,7 @@ The application utilizes a distributed, decoupled architecture:
 
 ## 3. System Design Diagram
 
-```mermaid
-flowchart TD
-    Client([User's Browser]) -.->|HTTPS| CF[AWS CloudFront CDN]
-    
-    subgraph AWS Network [AWS Public Cloud]
-        direction TB
-        CF
-        
-        subgraph Compute [AWS EC2 Instance - Ubuntu]
-            Frontend[serve: React SPA<br/>Port 3000]
-            Backend[Node.js: Express API<br/>Port 5000]
-        end
-    end
-    
-    DB[(MongoDB Atlas)]
-    
-    CF -->|Path: /*<br/>Optimized Cache| Frontend
-    CF -->|Path: /api/*<br/>Dynamic / JWT Forwarded| Backend
-    
-    Backend <-->|MongoDB Protocol| DB
-
-    style CF fill:#f90,stroke:#333,stroke-width:2px,color:#fff
-    style Compute fill:#ececff,stroke:#333,stroke-width:1px,color:#000
-    style AWS Network fill:#f4f4f4,stroke:#ccc,stroke-dasharray: 5 5
-    style Frontend fill:#61dafb,stroke:#333,stroke-width:1px,color:#000
-    style Backend fill:#8cc84b,stroke:#333,stroke-width:1px,color:#000
-    style DB fill:#4db33d,stroke:#333,stroke-width:2px,color:#fff
-```
+![alt text](image.png)
 
 ## 4. Tech Stack
 *   **Frontend**: React.js, Vite build tool, Vanilla CSS (dynamic UI).
