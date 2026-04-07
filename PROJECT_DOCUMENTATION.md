@@ -121,3 +121,22 @@ The architecture scales by dividing static delivery from dynamic computing.
 *   **AWS CloudFront (The Global Proxy)**: The CDN distribution acts as the public-facing gateway for the users. 
     *   **Behavior 1 (`/*`)**: Routes to Port 3000 on the EC2 origin. CloudFront uses `CachingOptimized` to aggressively cache static React assets across global edge nodes, ensuring sub-second load times for the UI. It redirects 404s to `index.html` to support the SPA router.
     *   **Behavior 2 (`/api/*`)**: Routes to Port 5000 on the EC2 origin. Caching is **Disabled** entirely (dynamic data). Crucially, the Origin Request Policy is set to `AllViewerExceptHostHeader`, which enforces that incoming JWT Authentication cookies, CORS domains, and Authorization headers are perfectly forwarded from the client browser through CloudFront and securely into the Express API.
+
+
+## 9. Local Development & Containerization (Docker)
+The project is fully containerized for seamless, platform-agnostic local development and open-source distribution.
+
+### Docker Configuration
+1.  **Backend (`backend/Dockerfile`)**: Secures a minimal `node:24-alpine` image to install server dependencies deterministically and expose the Express API on port 5000.
+2.  **Frontend (`frontend/Dockerfile`)**: Employs an ultra-efficient **Multi-stage Build**. It compiles the React application via Vite, instantly discards the heavy build tools, and strictly serves the static `dist` bundle via a lightweight micro-server on port 3000.
+3.  **Network Coordination (`docker-compose.yml`)**: Links both microservices within an encapsulated virtual network. It bridges the React components to the API instantly while securely passing isolated environment variables. Both environments use strict `.dockerignore` barriers avoiding host system contamination.
+
+### Quick Start Guide
+To run the *entire* full-stack application flawlessly on any machine (regardless of local Node/NPM states):
+1. Install Docker Desktop.
+2. In the `backend/` directory, create a `.env` file containing your exact `MONGODB_URI` and `JWT_SECRET`.
+3. Open your terminal in the root directory and execute:
+```bash
+docker-compose up --build
+```
+The unified application will securely spin up at `http://localhost:3000`.
