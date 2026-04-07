@@ -1,0 +1,143 @@
+name: Deploy to Production
+
+on:
+  # Only deploy when CI passes on main
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    # Only deploy if CI succeeded (not on failure or cancellation)
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      # ── Step 1: Deploy via SSH ─────────────────────────────────────
+      - name: Deploy application to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          script: |
+            echo "🚀 Starting deployment..."
+            
+            REPO_URL=https://github.com/himeshbn/Task-Manager-Application.git
+            TEMP_DIR=~/Task-Manager-Application
+            BACKEND_DIR=~/task-manager-backend
+            FRONTEND_DIR=~/task-manager-frontend
+            
+            # ── Clone/update repo to get latest code ──
+            if [ -d "$TEMP_DIR" ]; then
+              cd "$TEMP_DIR"
+              git fetch origin main
+              git reset --hard origin/main
+            else
+              git clone "$REPO_URL" "$TEMP_DIR"
+            fi
+            
+            # ── Deploy Backend ──
+            echo "📦 Deploying backend..."
+            mkdir -p "$BACKEND_DIR"
+            rsync -av --delete --exclude='node_modules' --exclude='.env' "$TEMP_DIR/backend/" "$BACKEND_DIR/"
+            
+            cd "$BACKEND_DIR"
+            npm ci --omit=dev
+            
+            # Create .env from secrets (only if it doesn't exist)
+            if [ ! -f .env ]; then
+              echo "🔐 Creating .env file..."
+              cat > .env <<EOF
+            PORT=5000
+            NODE_ENV=production
+            MONGODB_URI=${{ secrets.MONGODB_URI }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRE=7d
+            CLIENT_URL=${{ secrets.CLIENT_URL }}
+            EOF
+            fi
+            
+            # Restart backend
+            echo "🔄 Restarting backend..."
+            pm2 restart task-manager-backend --update-env 2>/dev/null || pm2 start server.js --name "task-manager-backend"
+            
+            # ── Deploy Frontend ──
+            echo "🎨 Deploying frontend (React)..."
+            mkdir -p "$FRONTEND_DIR"
+            rsync -av --delete --exclude='node_modules' "$TEMP_DIR/frontend/" "$FRONTEND_DIR/"
+            
+            # Build frontend
+            cd "$FRONTEND_DIR"
+            npm ci
+            npm run build
+            
+            # Install serve globally for SPA-compatible static file serving
+            npm install -g serve 2>/dev/null || true
+            
+            # Restart frontend — serve with SPA fallback (-s) on port 3000
+            echo "🔄 Restarting frontend..."
+            pm2 delete task-manager-frontend 2>/dev/null || true
+            pm2 start serve --name "task-manager-frontend" -- -s dist -l 3000
+            
+            pm2 save --force
+            
+            # Verify
+            sleep 3
+            pm2 status
+            
+            echo "✅ Deployment complete!"
+
+      # ── Step 2: Verify deployment health ───────────────────────────
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            # Check backend health
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health)
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              echo "✅ Backend is healthy (HTTP $HTTP_STATUS)"
+            else
+              echo "❌ Backend health check failed (HTTP $HTTP_STATUS)"
+              pm2 logs task-manager-backend --lines 20 --nostream
+              exit 1
+            fi
+            
+            # Check frontend health
+            FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000)
+            if [ "$FRONTEND_STATUS" -eq 200 ]; then
+              echo "✅ Frontend is healthy (HTTP $FRONTEND_STATUS)"
+            else
+              echo "⚠️ Frontend check returned HTTP $FRONTEND_STATUS"
+            fi
+
+      # ── Step 3: Clear CloudFront Cache ─────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 # CloudFront is global, but us-east-1 is standard for CLI
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          echo "🧹 Clearing CDN cache for distribution ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}..."
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      # ── Step 4: Notify on failure ─────────────────────────────────
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deployment failed! Check the logs above for details."
+          echo "If the application is down, SSH into EC2 and run: pm2 logs"

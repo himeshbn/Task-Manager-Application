@@ -1,0 +1,93 @@
+name: Security Scan
+
+on:
+  # Weekly scan — catches new CVEs even when you're not pushing code
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9:00 AM UTC
+
+  # Also run on PRs to catch issues before merge
+  pull_request:
+    branches: [main]
+
+  # Allow manual trigger from Actions tab
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  security-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      # ── npm audit — checks the GitHub Advisory Database ────────────
+      - name: Run npm audit
+        working-directory: ./backend
+        run: |
+          echo "🔍 Running security audit..."
+          npm audit --json > audit-report.json || true
+          
+          # Parse results
+          CRITICAL=$(cat audit-report.json | node -e "
+            const data = require('fs').readFileSync('/dev/stdin', 'utf8');
+            try {
+              const json = JSON.parse(data);
+              const v = json.metadata?.vulnerabilities || {};
+              console.log(v.critical || 0);
+            } catch { console.log(0); }
+          ")
+          
+          HIGH=$(cat audit-report.json | node -e "
+            const data = require('fs').readFileSync('/dev/stdin', 'utf8');
+            try {
+              const json = JSON.parse(data);
+              const v = json.metadata?.vulnerabilities || {};
+              console.log(v.high || 0);
+            } catch { console.log(0); }
+          ")
+          
+          echo "Critical: $CRITICAL | High: $HIGH"
+          
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Found $CRITICAL critical vulnerabilities!"
+            npm audit
+            exit 1
+          fi
+          
+          if [ "$HIGH" -gt 0 ]; then
+            echo "::warning::Found $HIGH high-severity vulnerabilities"
+            npm audit
+          fi
+          
+          echo "✅ No critical vulnerabilities found"
+
+      # ── Snyk (optional — requires SNYK_TOKEN secret) ───────────────
+      - name: Run Snyk security scan
+        if: env.SNYK_TOKEN != ''
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+          command: test
+
+      # ── Check for outdated packages ────────────────────────────────
+      - name: Check for outdated packages
+        working-directory: ./backend
+        run: |
+          echo "📦 Checking for outdated packages..."
+          npm outdated || true
+        continue-on-error: true

@@ -1,0 +1,140 @@
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent);
+}
+
+.cardCompleted {
+  opacity: 0.75;
+  background: var(--bg-tertiary);
+  border-style: dashed;
+}
+
+.cardCompleted .title {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+.cardOverdue {
+  border-left: 4px solid var(--danger);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin: 0;
+  word-break: break-word;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.badgePending { background: var(--warning-soft); color: var(--warning); border: 1px solid rgba(255, 159, 67, 0.2); }
+.badgeInProgress { background: var(--info-soft); color: var(--info); border: 1px solid rgba(84, 160, 255, 0.2); }
+.badgeCompleted { background: var(--success-soft); color: var(--success); border: 1px solid rgba(0, 196, 140, 0.2); }
+
+.badgeHigh { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(255, 107, 107, 0.2); }
+.badgeMedium { background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(108, 92, 231, 0.2); }
+.badgeLow { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border); }
+
+.description {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  flex-grow: 1;
+  margin-bottom: 20px;
+}
+
+.emptyDesc {
+  font-style: italic;
+  color: var(--text-tertiary);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.date {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dateOverdue {
+  color: var(--danger);
+}
+
+.overdueBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.actionBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.actionBtn:hover {
+  background: var(--accent-soft);
+  transform: scale(1.1);
+}
+
+.actionDelete:hover {
+  background: var(--danger-soft);
+}

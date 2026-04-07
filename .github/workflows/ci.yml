@@ -1,0 +1,105 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  ci:
+    name: Lint → Audit → Test
+    runs-on: ubuntu-latest
+
+    # MongoDB service container — isolated, free, no Atlas credentials needed
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MONGODB_URI: mongodb://localhost:27017/taskmanager_test
+      JWT_SECRET: ci-test-secret-key-not-for-production
+      JWT_EXPIRE: 7d
+      NODE_ENV: test
+      PORT: 5000
+
+    steps:
+      # ── Step 1: Checkout code ──────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Step 2: Setup Node.js with dependency caching ──────────────
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # ── Step 3: Clean install from lockfile ────────────────────────
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      # ── Step 4: Lint — catch code quality issues ───────────────────
+      - name: Run ESLint
+        working-directory: ./backend
+        run: npm run lint
+
+      # ── Step 5: Security audit — check for known vulnerabilities ───
+      - name: Security audit
+        working-directory: ./backend
+        run: npm audit --audit-level=high --omit=dev || true
+
+      # ── Step 6: Run tests against MongoDB service container ────────
+      - name: Run tests
+        working-directory: ./backend
+        run: npm test
+
+      # ── Step 7: Health check — verify server actually starts ───────
+      - name: Health check (smoke test)
+        working-directory: ./backend
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          echo "Waiting for server to start..."
+          sleep 4
+          
+          # Hit the health endpoint
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health)
+          
+          # Cleanup
+          kill $SERVER_PID 2>/dev/null || true
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Health check passed (HTTP $HTTP_STATUS)"
+          else
+            echo "❌ Health check failed (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+
+      # ── Step 8: Frontend CI ────────────────────────────────────────
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Lint Frontend
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: npm run build
+
