@@ -78,8 +78,10 @@ const login = async (req, res) => {
     const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
+      console.log(`[SECURITY] Login success | email=${email} | ip=${req.ip}`);
       sendTokenResponse(user, 200, res);
     } else {
+      console.warn(`[SECURITY] Login failed | email=${email} | ip=${req.ip} | reason=${user ? 'wrong_password' : 'no_account'}`);
       res.status(401).json({ message: 'Invalid email or password' });
     }
   } catch (error) {

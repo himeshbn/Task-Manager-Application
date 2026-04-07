@@ -20,7 +20,9 @@ const getTasks = async (req, res) => {
 
     // Search query
     if (req.query.search) {
-      query.title = { $regex: req.query.search, $options: 'i' };
+      // Escape regex metacharacters to prevent ReDoS attacks
+      const escaped = req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.title = { $regex: escaped, $options: 'i' };
     }
 
     const totalTasks = await Task.countDocuments(query);

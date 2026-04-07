@@ -25,15 +25,17 @@ const protect = async (req, res, next) => {
       req.user = await User.findById(decoded.id).select('-password');
 
       if (!req.user) {
+        console.warn(`[SECURITY] Token valid but user deleted | userId=${decoded.id} | ip=${req.ip}`);
         return res.status(401).json({ message: 'User not found' });
       }
 
       return next();
     } catch (error) {
-      console.error(error);
+      console.warn(`[SECURITY] Invalid/expired token | ip=${req.ip} | error=${error.message}`);
       return res.status(401).json({ message: 'Not authorized, token failed' });
     }
   } else {
+    console.warn(`[SECURITY] No token provided | ip=${req.ip} | path=${req.originalUrl}`);
     return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };

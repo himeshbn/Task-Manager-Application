@@ -15,8 +15,10 @@ router.use(protect);
 
 const taskValidation = [
   body('title').notEmpty().withMessage('Task title is required').trim().escape(),
+  body('description').optional().trim().escape(),
   body('priority').optional().isIn(['low', 'medium', 'high']).withMessage('Invalid priority level'),
-  body('status').optional().isIn(['pending', 'in-progress', 'completed']).withMessage('Invalid status')
+  body('status').optional().isIn(['pending', 'in-progress', 'completed']).withMessage('Invalid status'),
+  body('dueDate').optional().isISO8601().withMessage('Invalid date format'),
 ];
 
 // Routes for /api/tasks
