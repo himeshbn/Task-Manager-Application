@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useTheme } from '../context/ThemeContext';
@@ -9,17 +9,24 @@ export default function LoginPage() {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [registerData, setRegisterData] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
   const { login, register } = useAuth();
   const toast = useToast();
   const { darkMode, toggleDarkMode } = useTheme();
 
+  useEffect(() => {
+    setFormError('');
+  }, [activeTab]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setFormError('');
     try {
       await login(loginData.email, loginData.password);
       toast.success('Welcome back!');
     } catch (err) {
+      setFormError(err.message || 'Login failed');
       toast.error(err.message || 'Login failed');
     } finally {
       setLoading(false);
@@ -29,10 +36,12 @@ export default function LoginPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setFormError('');
     try {
       await register(registerData.name, registerData.email, registerData.password);
       toast.success('Account created successfully!');
     } catch (err) {
+      setFormError(err.message || 'Registration failed');
       toast.error(err.message || 'Registration failed');
     } finally {
       setLoading(false);
@@ -113,6 +122,7 @@ export default function LoginPage() {
             <button type="submit" className={styles.submitBtn} disabled={loading}>
               {loading ? <span className={styles.spinner} /> : 'Sign In'}
             </button>
+            {formError && <div className={styles.errorMessage}>{formError}</div>}
           </form>
         ) : (
           <form onSubmit={handleRegister} className={styles.form}>
@@ -153,6 +163,7 @@ export default function LoginPage() {
             <button type="submit" className={styles.submitBtn} disabled={loading}>
               {loading ? <span className={styles.spinner} /> : 'Create Account'}
             </button>
+            {formError && <div className={styles.errorMessage}>{formError}</div>}
           </form>
         )}
       </div>
