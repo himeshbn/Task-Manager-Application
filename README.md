@@ -1,4 +1,4 @@
-# Task Manager Application - Project Documentation
+# Task Manager Application
 
 ## 1. Project Overview
 Task Manager is a secure, full-stack web application designed to help users efficiently organize, track, and manage their daily tasks. Users can securely register, authenticate, and perform complete CRUD (Create, Read, Update, Delete) operations on their personal task lists. It is built to industry standards, featuring a fluid interface, strict backend validation, and a completely automated, zero-downtime deployment pipeline.
