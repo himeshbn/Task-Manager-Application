@@ -27,7 +27,6 @@ export default function LoginPage() {
       toast.success('Welcome back!');
     } catch (err) {
       setFormError(err.message || 'Login failed');
-      toast.error(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -42,7 +41,6 @@ export default function LoginPage() {
       toast.success('Account created successfully!');
     } catch (err) {
       setFormError(err.message || 'Registration failed');
-      toast.error(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
